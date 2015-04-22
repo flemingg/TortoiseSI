@@ -37,8 +37,8 @@ IDR_DOWNLOAD            AVI                     "download.avi"
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDR_MAINFRAME           ICON                    "IntegrityClient.ico"
 IDI_DRIVES              ICON                    "Drives.ico"
+IDR_MAINFRAME           ICON                    "TortoiseSI.ico"
 IDI_SSH                 ICON                    "ssh.ico"
 IDI_PROXY               ICON                    "proxy.ico"
 IDI_MISC                ICON                    "misc.ico"
@@ -2448,7 +2448,7 @@ BEGIN
         BOTTOMMARGIN, 210
     END
 
-    IDD_SETTINGSSAVEDDATA, DIALOG
+    "IDD_SETTINGSSAVEDDATA", DIALOG
     BEGIN
         LEFTMARGIN, 7
         RIGHTMARGIN, 293

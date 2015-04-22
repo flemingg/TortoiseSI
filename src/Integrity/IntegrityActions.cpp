@@ -262,12 +262,12 @@ namespace IntegrityActions {
 		std::unique_ptr<IntegrityResponse> response = responseFuture.get();
 		if (response == NULL) {
 			EventLog::writeWarning(L"get status failed to return response");
-			return NO_STATUS;
+			return WorkingFileChange::FileStatusFlags::NO_STATUS;
 		}
 
 		if (response->getException() != NULL) {
 			logAnyExceptions(*response);
-			return NO_STATUS;
+			return WorkingFileChange::FileStatusFlags::NO_STATUS;
 		} 
 
 		if (response->getExitCode() != 0) { 
@@ -275,12 +275,12 @@ namespace IntegrityActions {
 		}
 
 		for (mksWorkItem item : *response) {
-			int status = getIntegerFieldValue(item, L"status", NO_STATUS);
+			int status = getIntegerFieldValue(item, L"status", WorkingFileChange::FileStatusFlags::NO_STATUS);
 
 			EventLog::writeInformation(std::wstring(L"wf fileInfo ") + file + L" has status " +  std::to_wstring(status));
 			return status;
 		}
-		return NO_STATUS;
+		return WorkingFileChange::FileStatusFlags::NO_STATUS;
 	}
 
 
@@ -457,7 +457,6 @@ namespace IntegrityActions {
 	std::vector<std::shared_ptr<IntegrityActions::ChangePackage> *> getChangePackageList(const IntegritySession& session) {
 		std::vector<std::shared_ptr<IntegrityActions::ChangePackage> *> cps;
 		IntegrityCommand command(L"si", L"viewcps");
-		command.addOption(L"filter", L"state:open");
 		command.addOption(L"fields", L"id,summary,description,cptype,creationdate,issue");
 
 		std::unique_ptr<IntegrityResponse> response = session.execute(command);
@@ -514,9 +513,9 @@ namespace IntegrityActions {
 		for (mksWorkItem item : *response) {
 
 			std::wstring id = getId(item);
-			int status = getIntegerFieldValue(item, L"status", NO_STATUS);
+			int status = getIntegerFieldValue(item, L"status", WorkingFileChange::FileStatusFlags::NO_STATUS);
 
-			// Create change package object
+			// Create a working file change object
 			std::shared_ptr<IntegrityActions::WorkingFileChange> change = std::shared_ptr<IntegrityActions::WorkingFileChange>(IntegrityActions::WorkingFileChange::WorkingFileChangeBuilder()
 				.setId(id)
 				.setStatus(status)

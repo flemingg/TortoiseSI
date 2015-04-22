@@ -147,6 +147,7 @@
 #define IDS_MENUAPPLYPATCH              207
 #define IDS_CLIENT_COMM_TITLE           207
 #define IDS_MENUDESCCREATEPATCH         208
+#define IDS_WFC_GROUP_NOCP              208
 #define IDS_MENUDESCAPPLYPATCH          209
 #define IDS_MENUDESCSVNFETCH            210
 #define IDS_MENULOGSUBMODULE            211
@@ -330,7 +331,6 @@
 #define IDC_STATIC_LASTMODIFIED         11030
 #define IDC_SYMLINK                     11031
 #define IDS_ETC                         11032
-#define IDC_LIST1                       11032
 #define IDS_SHOWING_PARTIAL_RESULTS     11033
 #define IDC_LIST2                       11033
 

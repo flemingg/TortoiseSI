@@ -2,11 +2,9 @@
 // Microsoft Visual C++ generated include file.
 // Used by D:\GitHub\TortoiseSI\src\Resources\TortoiseProcENG.rc
 //
-#define IDR_MAINFRAME                   1
 #define IDD_SETTINGSPROXY               102
 #define IDD_SETTINGSHOOKS               103
 #define IDD_SETTINGSOVERLAY             106
-#define IDD_SETTINGSSAVEDDATA           108
 #define IDI_COMMIT                      123
 #define IDI_REVERT                      125
 #define IDD_ABOUT                       129
@@ -170,6 +168,7 @@
 #define IDI_CERTCHECK                   355
 #define IDI_TORTOISEUDIFF               356
 #define IDD_SETTINGSUDIFF               357
+#define IDR_MAINFRAME                   358
 #define IDS_CHSTAT_FILECOL              1000
 #define IDS_CHSTAT_WCCOL                1001
 #define IDS_CHSTAT_REPOCOL              1002
@@ -216,6 +215,7 @@
 #define IDC_SERVERADDRESS               1027
 #define IDC_USEREDIT                    1027
 #define IDS_MENUCREATERESTORE           1027
+#define IDS_WCF_GROUP_NOCP              1027
 #define IDS_PROC_SUBMODULESUPDATE       1028
 #define IDC_URLCOMBO                    1029
 #define IDS_NOWORKINGCOPY               1029

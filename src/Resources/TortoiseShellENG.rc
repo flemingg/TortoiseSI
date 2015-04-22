@@ -27,7 +27,6 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
 IDI_PULL                ICON                    "update1.ico"
-IDI_APP                 ICON                    "TortoiseSI.ico"
 IDI_CHECKOUT            ICON                    "menucheckout.ico"
 IDI_UPDATE              ICON                    "menuupdate.ico"
 IDI_COMMIT              ICON                    "menucommit.ico"
@@ -80,6 +79,7 @@ IDI_REVISIONGRAPH       ICON                    "menurevisiongraph.ico"
 IDI_DAEMON              ICON                    "menudaemon.ico"
 IDI_MERGEABORT          ICON                    "menumergeabort.ico"
 IDI_LOCK                ICON                    "ssh.ico"
+IDI_APP                 ICON                    "TortoiseSI.ico"
 #endif    // Neutral resources
 /////////////////////////////////////////////////////////////////////////////
 
@@ -239,7 +239,7 @@ BEGIN
     IDS_MOVE_DESC           "Move one or more project members between projects, or between directories in a single project"
     IDS_VIEW_WORKINGFILECHANGES "View Working File Changes"
     IDS_VIEW_WORKINGFILECHANGES_DESC "Launch the Working File Changes View"
-    IDS_SUBMIT_CP           "Submit CP..."
+    IDS_SUBMIT_CP           "Submit Changes..."
     IDS_SUBMIT_CP_DESC      "Commit changes in a change package"
     IDS_CLIENT_COMM_ERROR   "Could not communicate with Integrity client"
     IDS_CLIENT_COMM_TITLE   "TortoiseSI Integrity Client Communication Error"
@@ -256,6 +256,11 @@ BEGIN
     IDS_PROP_WORKING_CPID   "Working CP Id"
     IDS_PROP_FILE_GROUP_NAME "File"
     IDS_PROP_LOCK_GROUP_NAME "Lock"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_WFC_GROUP_NOCP      "No Change Package"
 END
 
 #endif    // English (United States) resources

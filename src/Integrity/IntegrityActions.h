@@ -27,11 +27,23 @@
 
 namespace IntegrityActions {
 
-	const FileStatusFlags NO_STATUS = 0;
-
 	class WorkingFileChange {
 	public:
 		class WorkingFileChangeBuilder;
+		
+		typedef enum FileStatusFlags_e {
+			NO_STATUS     = 0x0,
+			ADD           = 0x1,
+			DROP          = 0x2,
+			MODIFIED      = 0x4,
+			MOVED         = 0x8,
+			RENAMED       = 0x10,
+			NEEDS_MERGE   = 0x20,
+			MEMBER        = 0x100,
+			FORMER_MEMBER = 0x200,
+			OUT_OF_SYNC   = 0x400,
+			LOCKED        = 0x800
+		} FileStatusFlags;
 
 	private:
 		std::wstring m_id;
