@@ -216,6 +216,9 @@
     <ClCompile Include="..\TortoiseShell\ServerConnections.cpp">
       <Filter>Integrity</Filter>
     </ClCompile>
+    <ClCompile Include="..\SI\WorkingChangesFileListCtrl.cpp">
+      <Filter>Commands\SI Commit</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Utils\MiscUI\HorizontalResizableStandAloneDialog.h">
@@ -439,6 +442,9 @@
     </ClInclude>
     <ClInclude Include="..\TortoiseShell\DebugEventLog.h">
       <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="..\SI\WorkingChangesFileListCtrl.h">
+      <Filter>Commands\SI Commit</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -830,6 +836,9 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\Resources\IntegrityClient.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\Resources\TortoiseSI.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

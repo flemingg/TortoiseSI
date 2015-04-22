@@ -130,18 +130,24 @@ std::unique_ptr<IntegrityResponse> IntegritySession::execute(const IntegrityComm
 
 				if (result == MKS_API_COMMUNICATION_ERROR) {
 					if (bShowingDialog == false) {
-						TCHAR message[256];
-						TCHAR caption[256];
+						CString message;
+						CString caption;
 
 						// If there is another execute running, then only show one dialog
 						bShowingDialog.store(true);
 
-						LoadString(GetModuleHandle(NULL), IDS_CLIENT_COMM_ERROR, message, 256);
-						LoadString(GetModuleHandle(NULL), IDS_CLIENT_COMM_TITLE, caption, 256);
+						message.LoadString(IDS_CLIENT_COMM_ERROR);
+						caption.LoadString(IDS_CLIENT_COMM_TITLE);
 
 						// SHMessageBoxCheckW records the mesage boxes that the user has chosen to suppress under the registry key
 						// HKCU/Software/Microsoft/Windows/CurrentVersion/Explorer/DontShowMeThisDialogAgain
-						SHMessageBoxCheckW(	NULL, message, caption, MB_OK | MB_ICONEXCLAMATION, 0, L"{4B96CADC-960F-428F-B370-E088F2B5D423}");
+						SHMessageBoxCheckW(	
+							NULL, 
+							message, 
+							caption, 
+							MB_OK | MB_ICONEXCLAMATION, 
+							0, 
+							L"{4B96CADC-960F-428F-B370-E088F2B5D423}");
 												
 						bShowingDialog.store(false);
 					}

@@ -58,6 +58,7 @@
     <ClCompile Include="..\Integrity\IntegritySession.cpp" />
     <ClCompile Include="..\SI\Git.cpp" />
     <ClCompile Include="..\SI\TGitPath.cpp" />
+    <ClCompile Include="..\SI\WorkingChangesFileListCtrl.cpp" />
     <ClCompile Include="..\TortoiseShell\ServerConnections.cpp" />
     <ClCompile Include="..\Utils\ACEdit.cpp" />
     <ClCompile Include="..\Utils\ACListWnd.cpp" />
@@ -124,6 +125,7 @@
     <ClInclude Include="..\SI\GitForWindows.h" />
     <ClInclude Include="..\SI\gittype.h" />
     <ClInclude Include="..\SI\TGitPath.h" />
+    <ClInclude Include="..\SI\WorkingChangesFileListCtrl.h" />
     <ClInclude Include="..\TortoiseShell\DebugEventLog.h" />
     <ClInclude Include="..\TortoiseShell\ServerConnections.h" />
     <ClInclude Include="..\Utils\ACEdit.h" />
@@ -304,6 +306,7 @@
     <Image Include="..\Resources\showbranches.ico" />
     <Image Include="..\Resources\snippet.ico" />
     <Image Include="..\Resources\spell.ico" />
+    <Image Include="..\Resources\TortoiseSI.ico" />
     <Image Include="..\Resources\UpdateBackground.ico" />
     <Image Include="..\Resources\ssh.ico" />
     <Image Include="..\Resources\switch.ico" />
