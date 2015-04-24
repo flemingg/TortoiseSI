@@ -96,6 +96,7 @@
     <ClCompile Include="..\Utils\RegHistory.cpp" />
     <ClCompile Include="..\Utils\Registry.cpp" />
     <ClCompile Include="..\Utils\StringUtils.cpp" />
+    <ClCompile Include="..\Utils\SysImageList.cpp" />
     <ClCompile Include="..\Utils\SysInfo.cpp" />
     <ClCompile Include="..\Utils\TreePropSheet\PropPageFrame.cpp" />
     <ClCompile Include="..\Utils\TreePropSheet\PropPageFrameDefault.cpp" />
@@ -175,6 +176,7 @@
     <ClInclude Include="..\Utils\RegHistory.h" />
     <ClInclude Include="..\Utils\registry.h" />
     <ClInclude Include="..\Utils\StringUtils.h" />
+    <ClInclude Include="..\Utils\SysImageList.h" />
     <ClInclude Include="..\Utils\SysInfo.h" />
     <ClInclude Include="..\Utils\TreePropSheet\PropPageFrame.h" />
     <ClInclude Include="..\Utils\TreePropSheet\PropPageFrameDefault.h" />
@@ -196,6 +198,8 @@
     <ClInclude Include="TortoiseSIProc.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\..\..\..\Users\gfleming\Desktop\TortoiseSI Icons\SICommitBackground.bmp" />
+    <Image Include="..\..\..\..\Users\gfleming\Desktop\TortoiseSI Icons\SICommitBackground.ico" />
     <Image Include="..\Resources\actionadded.ico" />
     <Image Include="..\Resources\actiondeleted.ico" />
     <Image Include="..\Resources\actionfetching.ico" />
@@ -235,6 +239,8 @@
     <Image Include="..\Resources\graph-line.ico" />
     <Image Include="..\Resources\graph-pie.ico" />
     <Image Include="..\Resources\hook.ico" />
+    <Image Include="..\resources\ico00001.ico" />
+    <Image Include="..\resources\icon1.ico" />
     <Image Include="..\Resources\iconset.ico" />
     <Image Include="..\Resources\ImportBackground.ico" />
     <Image Include="..\Resources\ImportPatchesBackground.ico" />

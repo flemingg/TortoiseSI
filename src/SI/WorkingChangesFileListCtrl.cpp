@@ -30,7 +30,6 @@
 #include "TempFile.h"
 #include "StringUtils.h"
 #include "DirFileEnum.h"
-#include "LoglistUtils.h"
 #include "Git.h"
 #include "GitDiff.h"
 #include "GitProgressDlg.h"
@@ -41,13 +40,11 @@
 #include "ShellUpdater.h"
 #include "GitAdminDir.h"
 #include "DropFiles.h"
-#include "ProgressCommands/AddProgressCommand.h"
+
 #include "IconMenu.h"
 #include "FormatMessageWrapper.h"
 #include "BrowseFolder.h"
 
-// registry version number of column-settings of GitLogListBase
-#define GITSLC_COL_VERSION 5
 
 #ifndef assert
 #define assert(x) ATLASSERT(x)
@@ -61,21 +58,33 @@ const UINT CWorkingChangesFileListCtrl::GITSLNM_ITEMCHANGED      = ::RegisterWin
 
 
 BEGIN_MESSAGE_MAP(CWorkingChangesFileListCtrl, CListCtrl)
-	ON_NOTIFY(HDN_ITEMCLICKA,            0,  CWorkingChangesFileListCtrl::OnHdnItemclick)
-	ON_NOTIFY(HDN_ITEMCLICKW,            0,  CWorkingChangesFileListCtrl::OnHdnItemclick)
+	/* Notify list control that head item has been cliecked.                   */
+	/* We register both HDN_ITEMCLICKA and HDN_ITEMCLICKW so this notification */
+	/* is handled properly on both Win 95 and NT based OS.  Win 95 will send   */
+	/* the ANSI message whereas NT will send the wide character (unicode).     */
+	/* Only one of these messages will be received depending on the OS.        */
+	/* The second parameter filters based on the ID of the control and we know */
+	/* that the header control is ID 0.                                        */
+	ON_NOTIFY(HDN_ITEMCLICKA,            0,  CWorkingChangesFileListCtrl::OnHeadingItemClick) 
+	ON_NOTIFY(HDN_ITEMCLICKW,            0,  CWorkingChangesFileListCtrl::OnHeadingItemClick)     
+
 	ON_NOTIFY(HDN_ENDTRACK,              0,  CWorkingChangesFileListCtrl::OnColumnResized)
 	ON_NOTIFY(HDN_ENDDRAG,               0,  CWorkingChangesFileListCtrl::OnColumnMoved)
 	ON_NOTIFY(HDN_BEGINTRACKA,           0, &CWorkingChangesFileListCtrl::OnHdnBegintrack)
 	ON_NOTIFY(HDN_BEGINTRACKW,           0, &CWorkingChangesFileListCtrl::OnHdnBegintrack)
 	ON_NOTIFY(HDN_ITEMCHANGINGA,         0, &CWorkingChangesFileListCtrl::OnHdnItemchanging)
 	ON_NOTIFY(HDN_ITEMCHANGINGW,         0, &CWorkingChangesFileListCtrl::OnHdnItemchanging)
-	ON_NOTIFY_REFLECT_EX(LVN_ITEMCHANGED,    CWorkingChangesFileListCtrl::OnLvnItemchanged)
+
+	/* Notify list that an item in the list has changed */
+	ON_NOTIFY_REFLECT_EX(LVN_ITEMCHANGED,    CWorkingChangesFileListCtrl::OnListViewItemChanged)
 	ON_NOTIFY_REFLECT(NM_DBLCLK,             CWorkingChangesFileListCtrl::OnNMDblclk)
 	ON_NOTIFY_REFLECT(LVN_GETINFOTIP,        CWorkingChangesFileListCtrl::OnLvnGetInfoTip)
 	ON_NOTIFY_REFLECT(NM_CUSTOMDRAW,         CWorkingChangesFileListCtrl::OnNMCustomdraw)
 	ON_NOTIFY_REFLECT(NM_RETURN,             CWorkingChangesFileListCtrl::OnNMReturn)
 	ON_NOTIFY_REFLECT(LVN_BEGINDRAG,         CWorkingChangesFileListCtrl::OnBeginDrag)
-	ON_NOTIFY_REFLECT(LVN_ITEMCHANGING,     &CWorkingChangesFileListCtrl::OnLvnItemchanging)
+
+	/* Notify list that an item is the list is changing */
+	ON_NOTIFY_REFLECT(LVN_ITEMCHANGING,     &CWorkingChangesFileListCtrl::OnListViewItemChanging)
 	ON_WM_CONTEXTMENU()
 	ON_WM_SETCURSOR()
 	ON_WM_GETDLGCODE()
@@ -113,7 +122,6 @@ CWorkingChangesFileListCtrl::CWorkingChangesFileListCtrl() : CListCtrl()
 	, m_sNoPropValueText(MAKEINTRESOURCE(IDS_STATUSLIST_NOPROPVALUE))
 	, m_amend(false)
 	, m_bDoNotAutoselectSubmodules(false)
-	, m_bHasWC(true)
 	, m_hwndLogicalParent(NULL)
 	, m_bHasUnversionedItems(FALSE)
 	, m_nTargetCount(0)
@@ -139,13 +147,9 @@ CWorkingChangesFileListCtrl::CWorkingChangesFileListCtrl() : CListCtrl()
 	, m_bShowFolders(false)
 	, m_bUpdate(false)
 	, m_dwContextMenus(0)
-	, m_nIconFolder(0)
-	, m_nRestoreOvl(0)
 	, m_FileLoaded(0)
 {
-	m_critSec.Init();
-	m_bIsRevertTheirMy = false;
-	m_nLineAdded = m_nLineDeleted = 0;
+	m_criticalSection.Init();
 }
 
 // Destructor
@@ -154,52 +158,62 @@ CWorkingChangesFileListCtrl::~CWorkingChangesFileListCtrl()
 }
 
 
-void CWorkingChangesFileListCtrl::Init(
+void CWorkingChangesFileListCtrl::Init(	
 	DWORD dwColumns, 
-	const CString& sColumnInfoContainer, 
-	unsigned __int64 dwContextMenus /* = GitSLC_POPALL */, 
-	bool bHasCheckboxes /* = true */, 
-	bool bHasWC /* = true */, 
-	DWORD allowedColumns /* = 0xffffffff */)
+	const CString& sRegistryKeyName, 
+	unsigned __int64 dwContextMenus, 
+	bool bHasCheckboxes, 
+	DWORD allowedColumns)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_criticalSection);
 
-	m_dwDefaultColumns = dwColumns | 1;
+	// Set default columns bitm mask to columns specified, but ensure at least full path column is always shown 
+	m_dwDefaultColumns = dwColumns | SIWC_FULLPATH;
+
 	m_dwContextMenus = dwContextMenus;
 	m_bHasCheckboxes = bHasCheckboxes;
-	m_bHasWC = bHasWC;
 
-	// set the extended style of the listcontrol
-	// the style LVS_EX_FULLROWSELECT interferes with the background watermark image but it's more important to be able to select in the whole row.
-	CRegDWORD regFullRowSelect(_T("Software\\TortoiseGit\\FullRowSelect"), TRUE);
-	DWORD exStyle = LVS_EX_HEADERDRAGDROP | LVS_EX_DOUBLEBUFFER | LVS_EX_INFOTIP | LVS_EX_SUBITEMIMAGES;
-	if (DWORD(regFullRowSelect))
-		exStyle |= LVS_EX_FULLROWSELECT;
-	exStyle |= (bHasCheckboxes ? LVS_EX_CHECKBOXES : 0);
+	// Set the extended style of the listcontrol
+	// NOTE: The style LVS_EX_FULLROWSELECT interferes with the background 
+	//       watermark image but it's more important to be able to select in the whole row.
+	CString sFullRowSelect = _T("Software\\TortoiseSI\\") + sRegistryKeyName + _T("\\FullRowSelect");
+
+	CRegDWORD regFullRowSelect(sFullRowSelect, TRUE);
+
+	DWORD exStyle = 
+		LVS_EX_HEADERDRAGDROP |          // Enable drag-and-drop reordering of columns (requires LVS_REPORT_STYLE)
+		LVS_EX_DOUBLEBUFFER |            // Paint using double buffering which reduces flicker and enable alpa-blended marquee selection
+		LVS_EX_INFOTIP |                 // LVN_GETINFOTIP notification sent before displaying an items tooltip
+		LVS_EX_SUBITEMIMAGES;            // Allow images to be displayed for sub-items (requires LVS_REPORT style)
+
+	if (DWORD(regFullRowSelect)) {
+		exStyle |= LVS_EX_FULLROWSELECT; // Selecting item causes all sub-items to be selected too (requires LVS_REPORT style)
+	}
+
+	if (bHasCheckboxes) {
+		exStyle |= LVS_EX_CHECKBOXES;    // Enables check boxes for items
+	}
+
+	// Prevent content from being drawn while we update the content
 	SetRedraw(false);
+
 	SetExtendedStyle(exStyle);
 
 	SetWindowTheme(m_hWnd, L"Explorer", NULL);
 
-	m_nIconFolder = SYS_IMAGE_LIST().GetDirIconIndex();
-	m_nRestoreOvl = SYS_IMAGE_LIST().AddIcon((HICON)LoadImage(AfxGetResourceHandle(), MAKEINTRESOURCE(IDI_RESTOREOVL), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE));
-	SYS_IMAGE_LIST().SetOverlayImage(m_nRestoreOvl, OVL_RESTORE);
+
 	SetImageList(&SYS_IMAGE_LIST(), LVSIL_SMALL);
 
-	// keep CSorter::operator() in sync!!
-	static UINT standardColumnNames[SIWC_NUMCOLUMNS]= { 
-        IDS_STATUSLIST_COLFILE, 
-		IDS_STATUSLIST_COLFILENAME, 
-		IDS_STATUSLIST_COLEXT, 
-		IDS_STATUSLIST_COLSTATUS, 
-		IDS_STATUSLIST_COLADD, 
-		IDS_STATUSLIST_COLDEL, 
-		IDS_STATUSLIST_COLLASTMODIFIED, 
-		IDS_STATUSLIST_COLSIZE
+	// NOTE: Keep CSorter::operator() in sync!!
+	static UINT standardColumnNames[SIWC_NUMCOLUMNS] = { 
+		IDS_SIWC_FULLPATH,
+		IDS_SIWC_FILENAME,
+		IDS_SIWC_EXTENSION,
+		IDS_SIWC_STATUS
 	};
 
-	m_ColumnManager.SetNames(standardColumnNames,SIWC_NUMCOLUMNS);
-	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0xffffffff & ~(allowedColumns | m_dwDefaultColumns), sColumnInfoContainer, SIWC_NUMCOLUMNS);
+	m_ColumnManager.SetNames(standardColumnNames, SIWC_NUMCOLUMNS);
+	m_ColumnManager.ReadSettings(m_dwDefaultColumns, 0xffffffff & ~(allowedColumns | m_dwDefaultColumns), sRegistryKeyName, SIWC_NUMCOLUMNS);
 
 	SetRedraw(true);
 }
@@ -207,9 +221,78 @@ void CWorkingChangesFileListCtrl::Init(
 
 bool CWorkingChangesFileListCtrl::SetBackgroundImage(UINT nID)
 {
-	return CAppUtils::SetListCtrlBackgroundImage(GetSafeHwnd(), nID);
+	return SetBackgroundImage(GetSafeHwnd(), nID, 128, 128);
 }
 
+bool CWorkingChangesFileListCtrl::SetBackgroundImage(HWND hListCtrl, UINT nID, int width, int height )
+{
+	if ((((DWORD)CRegStdDWORD(_T("Software\\TortoiseSI\\ShowListCtrlBackgroundImage"), TRUE)) == FALSE))
+		return false;
+
+	ListView_SetTextBkColor(hListCtrl, CLR_NONE);
+
+	COLORREF bkColor = ListView_GetBkColor(hListCtrl);
+
+	// Create a bitmap from an icon
+	HICON hIcon = (HICON)LoadImage(AfxGetResourceHandle(), MAKEINTRESOURCE(nID), IMAGE_ICON, width, height, LR_DEFAULTCOLOR);
+
+	if (!hIcon)
+		return false;
+
+	HBITMAP bmp = NULL;
+	RECT rect = { 0 };
+	rect.right = width;
+	rect.bottom = height;
+	
+	HWND desktopWnd = ::GetDesktopWindow();
+
+	if(desktopWnd) {
+		HDC screenDC = ::GetDC(desktopWnd);
+
+		if(screenDC) {
+			// Create a compatible device context
+			HDC destDC = ::CreateCompatibleDC(screenDC);
+
+			if(destDC) {
+				// Create a new bitmap of icon size
+				bmp = ::CreateCompatibleBitmap( screenDC, rect.right, rect.bottom );
+
+				if(bmp) {
+					// Select it into the compatible DC
+					HBITMAP old_dst_bmp = (HBITMAP)::SelectObject(destDC, bmp);
+
+					// Fill the background of the compatible DC with the given color
+					::SetBkColor(destDC, bkColor);
+					::ExtTextOut(destDC, 0, 0, ETO_OPAQUE, &rect, NULL, 0, NULL);
+
+					// Draw the icon into the compatible DC
+					::DrawIconEx(destDC, 0, 0, hIcon, rect.right, rect.bottom, 0, NULL, DI_NORMAL);
+					::SelectObject(destDC, old_dst_bmp);
+				}
+
+				::DeleteDC(destDC);
+			}
+
+			::ReleaseDC(desktopWnd, screenDC);
+		}
+	}
+
+	// Restore settings
+	DestroyIcon(hIcon);
+
+	if(bmp == NULL) {
+		return false;
+	}
+
+	LVBKIMAGE lv;
+	lv.ulFlags = LVBKIF_TYPE_WATERMARK;
+	lv.hbm = bmp;
+	lv.xOffsetPercent = 100;
+	lv.yOffsetPercent = 100;
+	ListView_SetBkImage(hListCtrl, &lv);
+
+	return true;
+}
 
 BOOL CWorkingChangesFileListCtrl::GetStatus ( const CTGitPathList* pathList
 									, bool bUpdate /* = FALSE */
@@ -217,7 +300,7 @@ BOOL CWorkingChangesFileListCtrl::GetStatus ( const CTGitPathList* pathList
 									, bool bShowUnRev /* = false */
 									, bool bShowLocalChangesIgnored /* = false */)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	int mask= CWorkingChangesFileListCtrl::FILELIST_MODIFY;
 	if(bShowIgnores)
 		mask|= CWorkingChangesFileListCtrl::FILELIST_IGNORE;
@@ -289,8 +372,8 @@ void CWorkingChangesFileListCtrl::Show(unsigned int dwShow, unsigned int dwCheck
 	if (pApp)
 		pApp->DoWaitCursor(1);
 
-	Locker lock(m_critSec);
-	WORD langID = (WORD)CRegStdDWORD(_T("Software\\TortoiseGit\\LanguageID"), GetUserDefaultLangID());
+	Locker lock(m_CriticalSection);
+	WORD langID = (WORD)CRegStdDWORD(_T("Software\\TortoiseSI\\LanguageID"), GetUserDefaultLangID());
 
 	//SetItemCount(listIndex);
 	SetRedraw(FALSE);
@@ -390,13 +473,13 @@ void CWorkingChangesFileListCtrl::Show(unsigned int dwShow, unsigned int dwCheck
 	this->BuildStatistics();
 }
 
-
-void CWorkingChangesFileListCtrl::Show(unsigned int /*dwShow*/, const CTGitPathList& checkedList, bool /*bShowFolders*/ /* = true */)
+void CWorkingChangesFileListCtrl::Show(unsigned int dwShow, const std::wstring& checkedList, bool bShowFolders )
 {
 	DeleteAllItems();
+
 	for (int i = 0; i < checkedList.GetCount(); ++i)
 		this->AddEntry((CTGitPath *)&checkedList[i],0,i);
-	return ;
+	return;
 }
 
 
@@ -427,7 +510,7 @@ void CWorkingChangesFileListCtrl::AddEntry(CTGitPath * GitPath, WORD /*langID*/,
 	int icon_idx = 0;
 	if (GitPath->IsDirectory())
 	{
-		icon_idx = m_nIconFolder;
+		icon_idx = SYS_IMAGE_LIST().GetDirIconIndex();
 		m_nShownSubmodules++;
 	}
 	else
@@ -548,55 +631,78 @@ void CWorkingChangesFileListCtrl::AddEntry(CTGitPath * GitPath, WORD /*langID*/,
 }
 
 
-bool CWorkingChangesFileListCtrl::SetItemGroup(int item, int groupindex)
+bool CWorkingChangesFileListCtrl::SetItemGroup(int item, int groupIndex)
 {
-	if (groupindex < 0)
+	if (groupIndex < 0)
 		return false;
+
 	LVITEM i = {0};
 	i.mask = LVIF_GROUPID;
 	i.iItem = item;
 	i.iSubItem = 0;
-	i.iGroupId = groupindex;
+	i.iGroupId = groupIndex;
 
 	return !!SetItem(&i);
 }
 
 
-void CWorkingChangesFileListCtrl::OnHdnItemclick(NMHDR *pNMHDR, LRESULT *pResult)
+void CWorkingChangesFileListCtrl::OnHeadingItemClick(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMHEADER phdr = reinterpret_cast<LPNMHEADER>(pNMHDR);
-	*pResult = 0;
-	if (m_bBlock || m_arStatusArray.empty())
+
+	if (pResult != NULL) {
+		*pResult = 0;
+	}
+
+	// Check if there is anything to sort
+	if (m_bBlock || m_changePackages.empty() || m_workingFileChanges.empty()) {
 		return;
+	}
+
 	m_bBlock = TRUE;
-	if (m_nSortedColumn == phdr->iItem)
+
+	if(m_nSortedColumn == phdr->iItem) {
+		// Reverse sort order of sorted column
 		m_bAscending = !m_bAscending;
-	else
+	} else {
+		// Set columns sort order to ascending
 		m_bAscending = TRUE;
+	}
+
+	// Remember which column is sorted
 	m_nSortedColumn = phdr->iItem;
+
 	Show(m_dwShow, 0, m_bShowFolders,false,true);
 
 	m_bBlock = FALSE;
 }
 
 
-void CWorkingChangesFileListCtrl::OnLvnItemchanging(NMHDR *pNMHDR, LRESULT *pResult)
+void CWorkingChangesFileListCtrl::OnListViewItemChanging(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
-	*pResult = 0;
 
-#define ISCHECKED(x) ((x) ? ((((x)&LVIS_STATEIMAGEMASK)>>12)-1) : FALSE)
-	if ((m_bBlock)&&(m_bBlockUI))
-	{
+	if (pResult != NULL) {
+		*pResult = FALSE;
+	}
+
+	if (m_bBlock && m_bBlockUI) {
+		// Determine if old state and new state are checked
+		bool bOldStateChecked = (((pNMLV->uOldState) & LVIS_STATEIMAGEMASK) >> 12) - 1;
+		bool bNewStateChecked = (((pNMLV->uNewState) & LVIS_STATEIMAGEMASK) >> 12) - 1;
+
 		// if we're blocked, prevent changing of the check state
-		if ((!ISCHECKED(pNMLV->uOldState) && ISCHECKED(pNMLV->uNewState))||
-			(ISCHECKED(pNMLV->uOldState) && !ISCHECKED(pNMLV->uNewState)))
-			*pResult = TRUE;
+		if ( (!bOldStateChecked && bNewStateChecked) || (bOldStateChecked && !bNewStateChecked) ) {
+
+			if (pResult != NULL) {
+				*pResult = TRUE;
+			}
+		}
 	}
 }
 
 
-BOOL CWorkingChangesFileListCtrl::OnLvnItemchanged(NMHDR *pNMHDR, LRESULT *pResult)
+BOOL CWorkingChangesFileListCtrl::OnListViewItemChanged(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 	*pResult = 0;
@@ -676,7 +782,7 @@ void CWorkingChangesFileListCtrl::OnColumnMoved(NMHDR *pNMHDR, LRESULT *pResult)
 
 void CWorkingChangesFileListCtrl::CheckEntry(int index, int /*nListItems*/)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	//FileEntry * entry = GetListEntry(index);
 	CTGitPath *path=(CTGitPath*)GetItemData(index);
 	ASSERT(path != NULL);
@@ -694,7 +800,7 @@ void CWorkingChangesFileListCtrl::CheckEntry(int index, int /*nListItems*/)
 
 void CWorkingChangesFileListCtrl::UncheckEntry(int index, int /*nListItems*/)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	CTGitPath *path=(CTGitPath*)GetItemData(index);
 	ASSERT(path != NULL);
 	if (path == NULL)
@@ -849,7 +955,7 @@ void CWorkingChangesFileListCtrl::OnContextMenuGroup(CWnd * /*pWnd*/, CPoint poi
 				{
 					int group = GetGroupFromPoint(&clientpoint);
 					// go through all items and check/uncheck those assigned to the group
-					// but block the OnLvnItemChanged handler
+					// but block the OnListViewItemChanged handler
 					m_bBlock = true;
 					LVITEM lv;
 					for (int i=0; i<GetItemCount(); ++i)
@@ -923,7 +1029,7 @@ void CWorkingChangesFileListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 		//const CTGitPath& filepath = entry->path;
 		int wcStatus = filepath->m_Action;
 		// entry is selected, now show the popup menu
-		Locker lock(m_critSec);
+		Locker lock(m_CriticalSection);
 		CIconMenu popup;
 		CMenu changelistSubMenu;
 		CMenu ignoreSubMenu;
@@ -992,15 +1098,6 @@ void CWorkingChangesFileListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 					bEntryAdded = true;
 				}
 
-				if ((m_dwContextMenus & this->GetContextMenuBit(IDGITLC_COMPAREWC)) && m_bHasWC)
-				{
-					if ((!m_CurrentVersion.IsEmpty()) && m_CurrentVersion != GIT_REV_ZERO)
-					{
-						popup.AppendMenuIcon(IDGITLC_COMPAREWC, IDS_LOG_POPUP_COMPARE, IDI_DIFF);
-						bEntryAdded = true;
-					}
-				}
-
 				if (bEntryAdded)
 					popup.AppendMenu(MF_SEPARATOR);
 			}
@@ -1048,53 +1145,6 @@ void CWorkingChangesFileListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 				}
 			}
 
-			if ( (GetSelectedCount() >0 ) && (!(wcStatus & (CTGitPath::LOGACTIONS_UNVER | CTGitPath::LOGACTIONS_IGNORE))) && m_bHasWC)
-			{
-				if ((m_dwContextMenus & GITSLC_POPCOMMIT) && (this->m_CurrentVersion.IsEmpty() || this->m_CurrentVersion == GIT_REV_ZERO) && !(wcStatus & (CTGitPath::LOGACTIONS_SKIPWORKTREE | CTGitPath::LOGACTIONS_ASSUMEVALID)))
-				{
-					popup.AppendMenuIcon(IDGITLC_COMMIT, IDS_STATUSLIST_CONTEXT_COMMIT, IDI_COMMIT);
-				}
-
-				if ((m_dwContextMenus & GITSLC_POPREVERT) && (this->m_CurrentVersion.IsEmpty() || this->m_CurrentVersion == GIT_REV_ZERO))
-				{
-					popup.AppendMenuIcon(IDGITLC_REVERT, IDS_MENUREVERT, IDI_REVERT);
-				}
-
-				if ((m_dwContextMenus & GITSLC_POPSKIPWORKTREE) && (this->m_CurrentVersion.IsEmpty() || this->m_CurrentVersion == GIT_REV_ZERO) && !(wcStatus & (CTGitPath::LOGACTIONS_ADDED | CTGitPath::LOGACTIONS_UNMERGED | CTGitPath::LOGACTIONS_SKIPWORKTREE)) && !filepath->IsDirectory())
-				{
-					popup.AppendMenuIcon(IDGITLC_SKIPWORKTREE, IDS_STATUSLIST_SKIPWORKTREE);
-				}
-
-				if ((m_dwContextMenus & GITSLC_POPASSUMEVALID) && (this->m_CurrentVersion.IsEmpty() || this->m_CurrentVersion == GIT_REV_ZERO) && !(wcStatus & (CTGitPath::LOGACTIONS_ADDED | CTGitPath::LOGACTIONS_DELETED | CTGitPath::LOGACTIONS_UNMERGED | CTGitPath::LOGACTIONS_ASSUMEVALID)) && !filepath->IsDirectory())
-				{
-					popup.AppendMenuIcon(IDGITLC_ASSUMEVALID, IDS_MENUASSUMEVALID);
-				}
-
-				if ((m_dwContextMenus & GITLC_POPUNSETIGNORELOCALCHANGES) && (this->m_CurrentVersion.IsEmpty() || this->m_CurrentVersion == GIT_REV_ZERO) && (wcStatus & (CTGitPath::LOGACTIONS_SKIPWORKTREE | CTGitPath::LOGACTIONS_ASSUMEVALID)) && !filepath->IsDirectory())
-				{
-					popup.AppendMenuIcon(IDGITLC_UNSETIGNORELOCALCHANGES, IDS_STATUSLIST_UNSETIGNORELOCALCHANGES);
-				}
-
-				if (m_dwContextMenus & GITSLC_POPRESTORE && !filepath->IsDirectory())
-				{
-					if (m_restorepaths.find(filepath->GetWinPathString()) == m_restorepaths.end())
-						popup.AppendMenuIcon(IDGITLC_CREATERESTORE, IDS_MENUCREATERESTORE, IDI_RESTORE);
-					else
-						popup.AppendMenuIcon(IDGITLC_RESTOREPATH, IDS_MENURESTORE, IDI_RESTORE);
-				}
-
-				if ((m_dwContextMenus & GetContextMenuBit(IDGITLC_REVERTTOREV)) && ( !this->m_CurrentVersion.IsEmpty() )
-					&& this->m_CurrentVersion != GIT_REV_ZERO && !(wcStatus & CTGitPath::LOGACTIONS_DELETED))
-				{
-					popup.AppendMenuIcon(IDGITLC_REVERTTOREV, IDS_LOG_POPUP_REVERTTOREV, IDI_REVERT);
-				}
-
-				if ((m_dwContextMenus & GetContextMenuBit(IDGITLC_REVERTTOPARENT)) && ( !this->m_CurrentVersion.IsEmpty() )
-					&& this->m_CurrentVersion != GIT_REV_ZERO && !(wcStatus & CTGitPath::LOGACTIONS_ADDED))
-				{
-					popup.AppendMenuIcon(IDGITLC_REVERTTOPARENT, IDS_LOG_POPUP_REVERTTOPARENT, IDI_REVERT);
-				}
-			}
 
 			if ((GetSelectedCount() == 1)&&(!(wcStatus & CTGitPath::LOGACTIONS_UNVER))
 				&&(!(wcStatus & CTGitPath::LOGACTIONS_IGNORE)))
@@ -1110,10 +1160,6 @@ void CWorkingChangesFileListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 				if (m_dwContextMenus & GITSLC_POPSHOWLOGOLDNAME && (wcStatus & (CTGitPath::LOGACTIONS_REPLACED|CTGitPath::LOGACTIONS_COPY) && !filepath->GetGitOldPathString().IsEmpty()))
 				{
 					popup.AppendMenuIcon(IDGITLC_LOGOLDNAME, IDS_STATUSLIST_SHOWLOGOLDNAME, IDI_LOG);
-				}
-				if (m_dwContextMenus & GITSLC_POPBLAME && ! filepath->IsDirectory() && !(wcStatus & CTGitPath::LOGACTIONS_DELETED) && m_bHasWC)
-				{
-					popup.AppendMenuIcon(IDGITLC_BLAME, IDS_MENUBLAME, IDI_BLAME);
 				}
 			}
 
@@ -1139,12 +1185,6 @@ void CWorkingChangesFileListCtrl::OnContextMenuList(CWnd * pWnd, CPoint point)
 						popup.SetDefaultItem(IDGITLC_OPEN, FALSE);
 					}
 				}
-
-				if (m_dwContextMenus & GITSLC_POPEXPLORE && !(wcStatus & CTGitPath::LOGACTIONS_DELETED) && m_bHasWC)
-				{
-					popup.AppendMenuIcon(IDGITLC_EXPLORE, IDS_STATUSLIST_CONTEXT_EXPLORE, IDI_EXPLORER);
-				}
-
 			}
 
 			if (GetSelectedCount() > 0)
@@ -1774,7 +1814,7 @@ void CWorkingChangesFileListCtrl::SetGitIndexFlagsForSelectedFiles(UINT message,
 
 void CWorkingChangesFileListCtrl::OnContextMenuHeader(CWnd * pWnd, CPoint point)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	m_ColumnManager.OnContextMenuHeader(pWnd,point,!!IsGroupViewEnabled());
 }
 
@@ -1796,7 +1836,7 @@ void CWorkingChangesFileListCtrl::OnContextMenu(CWnd* pWnd, CPoint point)
 void CWorkingChangesFileListCtrl::OnNMDblclk(NMHDR *pNMHDR, LRESULT *pResult)
 {
 
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	LPNMLISTVIEW pNMLV = reinterpret_cast<LPNMLISTVIEW>(pNMHDR);
 	*pResult = 0;
 	if (m_bBlock)
@@ -2338,7 +2378,7 @@ BOOL CWorkingChangesFileListCtrl::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT me
 void CWorkingChangesFileListCtrl::RemoveListEntry(int index)
 {
 
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	DeleteItem(index);
 
 	m_arStatusArray.erase(m_arStatusArray.begin()+index);
@@ -2553,7 +2593,7 @@ void CWorkingChangesFileListCtrl::OnDestroy()
 
 void CWorkingChangesFileListCtrl::OnBeginDrag(NMHDR* /*pNMHDR*/, LRESULT* pResult)
 {
-	Locker lock(m_critSec);
+	Locker lock(m_CriticalSection);
 	CDropFiles dropFiles; // class for creating DROPFILES struct
 
 	int index;

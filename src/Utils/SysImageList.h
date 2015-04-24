@@ -54,14 +54,17 @@ public:
 	 * Returns the icon index for a directory.
 	 */
 	int GetDirIconIndex() const;
+
 	/**
 	 * Returns the icon index for a directory that's open (e.g. for a tree control)
 	 */
 	int GetDirOpenIconIndex() const;
+
 	/**
 	 * Returns the icon index for a file which has no special icon associated.
 	 */
 	int GetDefaultIconIndex() const;
+
 	/**
 	 * Returns the icon index for the specified \a file. Only the file extension
 	 * is used to determine the file's icon.

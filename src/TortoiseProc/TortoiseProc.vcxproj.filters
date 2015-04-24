@@ -219,6 +219,9 @@
     <ClCompile Include="..\SI\WorkingChangesFileListCtrl.cpp">
       <Filter>Commands\SI Commit</Filter>
     </ClCompile>
+    <ClCompile Include="..\Utils\SysImageList.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Utils\MiscUI\HorizontalResizableStandAloneDialog.h">
@@ -445,6 +448,9 @@
     </ClInclude>
     <ClInclude Include="..\SI\WorkingChangesFileListCtrl.h">
       <Filter>Commands\SI Commit</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Utils\SysImageList.h">
+      <Filter>Utils</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -839,6 +845,18 @@
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="..\Resources\TortoiseSI.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\..\Users\gfleming\Desktop\TortoiseSI Icons\SICommitBackground.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\..\..\..\Users\gfleming\Desktop\TortoiseSI Icons\SICommitBackground.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\resources\icon1.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="..\resources\ico00001.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

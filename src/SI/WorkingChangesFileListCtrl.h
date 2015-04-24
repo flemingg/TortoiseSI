@@ -29,15 +29,14 @@
 
 #define GIT_WC_ENTRY_WORKING_SIZE_UNKNOWN (-1)
 
-// These defines must be in the order the columns are inserted!
-#define GITSLC_COLFILENAME			0x000000002
-#define GITSLC_COLEXT				0x000000004
-#define GITSLC_COLSTATUS			0x000000008
-#define GITSLC_COLADD				0x000000010
-#define GITSLC_COLDEL				0x000000020
-#define GITSLC_COLMODIFICATIONDATE	0x000000040
-#define	GITSLC_COLSIZE				0x000000080
-#define SIWC_NUMCOLUMNS			    8
+typedef enum SIWC_Columns_e : DWORD {
+	SIWC_FULLPATH  = 1 << 0,
+	SIWC_FILENAME  = 1 << 1,
+	SIWC_EXTENSION = 1 << 2,
+	SIWC_STATUS    = 1 << 3,
+} SIWC_Columns;
+
+#define SIWC_NUMCOLUMNS 4
 
 #define GITSLC_SHOWUNVERSIONED	CTGitPath::LOGACTIONS_UNVER
 #define GITSLC_SHOWNORMAL		0x00000000
@@ -375,7 +374,7 @@ public:
 
 	/**
 	 * Initializes the control, sets up the columns.
-	 * \param dwColumns mask of columns to show. Use the GitSLC_COLxxx defines.
+	 * \param dwColumns mask of columns to show. Use the SIWC_Columns_t enum.
 	 * \param sColumnInfoContainer Name of a registry key
 	 *                             where the position and visibility of each column
 	 *                             is saved and used from. If the registry key
@@ -384,9 +383,8 @@ public:
 	 * \param dwContextMenus mask of context menus to be active, not all make sense for every use of this control.
 	 *                       Use the GitSLC_POPxxx defines.
 	 * \param bHasCheckboxes TRUE if the control should show check boxes on the left of each file entry.
-	 * \param bHasWC TRUE if the reporisty is not a bare repository (hides wc related items on the contextmenu)
 	 */
-	void Init(DWORD dwColumns, const CString& sColumnInfoContainer, unsigned __int64 dwContextMenus = ((GITSLC_POPALL ^ GITSLC_POPCOMMIT) ^ GITSLC_POPRESTORE), bool bHasCheckboxes = true, bool bHasWC = true, DWORD allowedColumns = 0xffffffff);
+	void Init(DWORD dwColumns, const CString& sColumnInfoContainer, unsigned __int64 dwContextMenus = ((GITSLC_POPALL ^ GITSLC_POPCOMMIT) ^ GITSLC_POPRESTORE), bool bHasCheckboxes = true, DWORD allowedColumns = 0xffffffff);
 
 	/**
 	 * Sets a background image for the list control.
@@ -429,7 +427,7 @@ public:
 	 * \param dwCheck mask of file types to check. Use GitLC_SHOWxxx defines. Default (0) means 'use the entry's stored check status'
 	 */
 	void Show(unsigned int dwShow, unsigned int dwCheck = 0, bool bShowFolders = true,BOOL updateStatusList=FALSE, bool UseStoredCheckStatus=false);
-	void Show(unsigned int dwShow, const CTGitPathList& checkedList, bool bShowFolders = true);
+	void Show(unsigned int dwShow, const std::wstring & checkedList, bool bShowFolders = true);
 
 	/**
 	 * Copies the selected entries in the control to the clipboard. The entries
@@ -672,6 +670,8 @@ private:
 	void StartDiffTwo(int fileindex);
 
 	void SetGitIndexFlagsForSelectedFiles(UINT message, BOOL assumevalid, BOOL skipworktree);
+	
+	bool SetBackgroundImage(HWND hWnd, UINT nID, int width, int height);
 
 	enum
 	{
@@ -726,9 +726,9 @@ private:
 	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	afx_msg void OnBeginDrag(NMHDR* pNMHDR, LRESULT* pResult);
 	afx_msg BOOL OnToolTipText(UINT id, NMHDR *pNMHDR, LRESULT *pResult);
-	afx_msg void OnHdnItemclick(NMHDR *pNMHDR, LRESULT *pResult);
-	afx_msg void OnLvnItemchanging(NMHDR *pNMHDR, LRESULT *pResult);
-	afx_msg BOOL OnLvnItemchanged(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnHeadingItemClick(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnListViewItemChanging(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg BOOL OnListViewItemChanged(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnColumnResized(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnColumnMoved(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnContextMenu(CWnd* pWnd, CPoint point);
@@ -761,7 +761,6 @@ private:
 	bool					    m_bAscending;		//< sort direction
 	int					        m_nSortedColumn;	//< which column to sort
 	bool						m_bHasCheckboxes;
-	bool						m_bHasWC;
 	bool						m_bUnversionedLast;
 	bool						m_bHasExternalsFromDifferentRepos;
 	bool						m_bHasExternals;
@@ -836,7 +835,7 @@ private:
 
 	std::map<CString,bool>		m_mapFilenameToChecked; //< Remember de-/selected items
 	std::map<CString,bool>		m_mapDirectFiles;
-	CComCriticalSection			m_critSec;
+	CComCriticalSection			m_criticalSection;
 
 	friend class CWorkingChangesFileListCtrlDropTarget;
 public:
