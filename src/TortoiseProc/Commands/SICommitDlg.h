@@ -22,11 +22,10 @@
 #include "StandAloneDlg.h"
 #include "ServerConnections.h"
 #include "IntegritySession.h"
+#include "WorkingChangesFileListCtrl.h"
 #include "TGitPath.h"
 #include "registry.h"
 #include "Tooltip.h"
-
-#include <regex>
 
 /**
  * \ingroup TortoiseSIProc
@@ -49,7 +48,8 @@ private:
 	enum { IDD = IDD_SICOMMITDLG };
 
 protected:
-	CComboBox     m_ctrlChangePackageComboBox;
+	CComboBox                   m_ctrlChangePackageComboBox;
+	CWorkingChangesFileListCtrl m_WorkingChangesFileListCtrl;
 
 private:
 	CRect         m_DlgOrigRect;

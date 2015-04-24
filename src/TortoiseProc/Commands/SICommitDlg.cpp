@@ -55,6 +55,7 @@ void CSICommitDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CResizableStandAloneDialog::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_SUBMIT_CP_COMBOBOX, m_ctrlChangePackageComboBox);
+	DDX_Control(pDX, IDC_WORKINGCHANGES_FILELIST, m_WorkingChangesFileListCtrl);
 }
 
 
@@ -83,6 +84,16 @@ BOOL CSICommitDlg::OnInitDialog()
 
 	// Initialize control data in dialog box
 	UpdateData(FALSE);
+
+	m_WorkingChangesFileListCtrl.Init(
+		SIWC_FULLPATH | SIWC_FILENAME | SIWC_EXTENSION | SIWC_STATUS, // Columns to show
+		_T("SIWorkingChangesFileListCtrlSettings"),                   // Registry key to store and read settings for control
+		(GITSLC_POPALL ^ (GITSLC_POPCOMMIT | GITSLC_POPSAVEAS)),      // Context menus
+		true, 
+		true);
+	m_WorkingChangesFileListCtrl.SetCancelBool( /* needs arg */ );
+	m_WorkingChangesFileListCtrl.EnableFileDrop();
+	m_WorkingChangesFileListCtrl.SetBackgroundImage(IDI_SICOMMIT_BKG);
 
 	m_tooltips.Create(this);
 	//TODO: Add resource strings for tool tips

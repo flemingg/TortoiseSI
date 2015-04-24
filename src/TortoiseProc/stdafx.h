@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <functional>
 #include <atomic>
+#include <regex>
 
 #include <vfw.h>
 #include <shlobj.h>
@@ -55,6 +56,7 @@
 #include <assert.h>
 #include <math.h>
 #include <gdiplus.h>
+#include <windef.h>
 
 #define __WIN32__
 
