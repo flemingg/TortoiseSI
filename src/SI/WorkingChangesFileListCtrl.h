@@ -30,10 +30,11 @@
 #define GIT_WC_ENTRY_WORKING_SIZE_UNKNOWN (-1)
 
 typedef enum SIWC_Columns_e : DWORD {
-	SIWC_FULLPATH  = 1 << 0,
-	SIWC_FILENAME  = 1 << 1,
-	SIWC_EXTENSION = 1 << 2,
-	SIWC_STATUS    = 1 << 3,
+	SIWC_COLUMN_FULLPATH  = 1 << 0,
+	SIWC_COLUMN_FILENAME  = 1 << 1,
+	SIWC_COLUMN_EXTENSION = 1 << 2,
+	SIWC_COLUMN_STATUS    = 1 << 3,
+    SIWC_COLUMN_ALL       = 0xFFFFFFFF
 } SIWC_Columns;
 
 #define SIWC_NUMCOLUMNS 4
@@ -92,31 +93,10 @@ GITSLC_SHOWINCOMPLETE|GITSLC_SHOWEXTERNAL|GITSLC_SHOWINEXTERNALS)
 
 #define GITSLC_SHOWALL (GITSLC_SHOWVERSIONED|GITSLC_SHOWUNVERSIONED)
 
-#define GITSLC_POPALL					0xFFFFFFFFFFFFFFFF
-#define GITSLC_POPCOMPAREWITHBASE		CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_COMPARE)
-#define GITSLC_POPCOMPARE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_COMPAREWC)
-#define GITSLC_POPGNUDIFF				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_GNUDIFF1)
-#define GITSLC_POPREVERT				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_REVERT)
-#define GITSLC_POPSHOWLOG				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_LOG)
-#define GITSLC_POPSHOWLOGSUBMODULE		CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_LOGSUBMODULE)
-#define GITSLC_POPSHOWLOGOLDNAME		CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_LOGOLDNAME)
-#define GITSLC_POPOPEN					CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_OPEN)
-#define GITSLC_POPDELETE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_DELETE)
-#define GITSLC_POPADD					CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_ADD)
-#define GITSLC_POPIGNORE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_IGNORE)
-#define GITSLC_POPCONFLICT				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_EDITCONFLICT)
-#define GITSLC_POPRESOLVE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_RESOLVECONFLICT)
-#define GITSLC_POPEXPLORE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_EXPLORE)
-#define GITSLC_POPCOMMIT				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_COMMIT)
-#define GITSLC_POPCHANGELISTS			CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_CHECKGROUP)
-#define GITSLC_POPBLAME					CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_BLAME)
-#define GITSLC_POPSAVEAS				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_SAVEAS)
-#define GITSLC_POPCOMPARETWOFILES		CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_COMPARETWOFILES)
-#define GITSLC_POPRESTORE				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_POPRESTORE)
-#define GITSLC_POPASSUMEVALID			CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_ASSUMEVALID)
-#define GITSLC_POPSKIPWORKTREE			CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_SKIPWORKTREE)
-#define GITSLC_POPEXPORT				CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_EXPORT)
-#define GITLC_POPUNSETIGNORELOCALCHANGES CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::IDGITLC_UNSETIGNORELOCALCHANGES)
+#define SIWC_CONTEXTMENU_ALL 0xFFFFFFFFFFFFFFFF
+#define SIWC_CONTEXTMENU_1	 CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::SIWC_CONTEXTMENU_1_ID)
+#define SIWC_CONTEXTMENU_2	 CWorkingChangesFileListCtrl::GetContextMenuBit(CWorkingChangesFileListCtrl::SIWC_CONTEXTMENU_2_ID)
+
 
 #define GITSLC_IGNORECHANGELIST			_T("ignore-on-commit")
 
@@ -133,8 +113,8 @@ class CWorkingChangesFileListCtrlDropTarget;
 /**
 * \ingroup TortoiseSIProc
 * Helper class for CWorkingChangesFileListCtrl that represents
-* the columns visible and their order as well as
-* persisting that data in the registry.
+* the visible columns, the column order and persistence of the
+* the column data in the registry.
 *
 * It assigns logical index values to the (potential) columns:
 * 0 .. GetColumnCount()-1 contain the standard attributes
@@ -145,97 +125,102 @@ class CWorkingChangesFileListCtrlDropTarget;
 */
 class ColumnManager
 {
-public:
+  protected:
 
-	// Constructor
-	ColumnManager (CListCtrl* control) 
-	{
-		m_control = control;
-		m_dwDefaultColumns = 0;
-	};
+	    // Our parent control and its data
+	    CListCtrl* m_control;
 
-	// Destructor
-	~ColumnManager() {};
+	    DWORD m_dwDefaultColumns;
 
-	// Registry access
-	void ReadSettings (DWORD defaultColumns, DWORD hideColumns, const CString& containerName, int ReadSettings, int *withlist=NULL);
-	void WriteSettings() const;
+		// Where to store in the registry
+		CString m_registryPrefix;
 
-	// Total number of columns
-	int GetColumnCount() const;  
+		// All columns in their "natural" order
+		typedef struct ColumnInfo_s
+		{
+			int index;     // Is a user prop when < GitSLC_USERPROPCOLOFFSET
+			int width;
+			bool visible;
+			bool relevant; // Set to false, if no *shown* item has that property
+		} ColumnInfo;
 
-	// Read column definitions
-	bool IsVisible (int column) const;
-	int GetInvisibleCount() const;
-	bool IsRelevant (int column) const;
-	CString GetName (int column) const;
-	int SetNames(UINT * buff, int size);
-	int GetWidth (int column, bool useDefaults = false) const;
-	int GetVisibleWidth (int column, bool useDefaults) const;
+		std::vector<ColumnInfo> m_columns;
 
-	// Switch columns on and off
-	void SetVisible (int column, bool visible);
+		// User-defined properties
+		std::set<CString> itemProps;
 
-	// Tracking column modifications
-	void ColumnMoved (int column, int position);
-	void ColumnResized (int column);
+		// Global column ordering including unused user props
+		std::vector<int> columnOrder;
 
-	// Don't clutter the context menu with irrelevant prop info
-	void RemoveUnusedProps();
+		std::vector<int> itemName;
 
-	// Bring everything back to its "natural" order
-	void ResetColumns (DWORD defaultColumns);
+  public:
 
-	void OnColumnResized(NMHDR *pNMHDR, LRESULT *pResult);
-	void OnColumnMoved(NMHDR *pNMHDR, LRESULT *pResult);
-	void OnHdnBegintrack(NMHDR *pNMHDR, LRESULT *pResult);
-	int OnHdnItemchanging(NMHDR *pNMHDR, LRESULT *pResult);
-	void OnContextMenuHeader(CWnd * pWnd, CPoint point, bool isGroundEnable = false);
-	void AddMenuItem(CMenu *pop);
+		// Constructor
+		ColumnManager (CListCtrl* control) 
+		{
+			m_dwDefaultColumns = 0;
+			m_control = control;
+		};
 
-protected:
+		// Destructor
+		~ColumnManager() {};
 
-	// Initialization utilities
-	void ParseWidths (const CString& widths);
-	void SetStandardColumnVisibility (DWORD visibility);
-	void ParseColumnOrder (const CString& widths);
+		// Registry access
+		void ReadSettings(DWORD dwDefaultColumns, DWORD dwHideColumns, const CString& sRegistryKeyName, int readSettings, int *withlist = NULL);
+		void WriteSettings() const;
 
-	// Map internal column order onto visible column order
-	// (all invisibles in front)
-	std::vector<int> GetGridColumnOrder() const;
-	void ApplyColumnOrder();
+		// Total number of columns
+		int GetColumnCount() const;  
 
-	// Utilities used when writing data to the registry
-	DWORD GetSelectedStandardColumns() const;
-	CString GetWidthString() const;
-	CString GetColumnOrderString() const;
+		// Column Names
+		CString GetName(int column) const;
+		int SetNames(UINT * buff, int size);
 
-	// Our parent control and its data
-	CListCtrl* m_control;
+		// Column Widths
+		int GetWidth(int column, bool useDefaults = false) const;
+		int GetVisibleWidth(int column, bool useDefaults) const;
 
-	// Where to store in the registry
-	CString m_registryPrefix;
+		// Column Visibility
+		void SetVisible(int column, bool visible);
+		bool IsVisible(int column) const;
+		int GetInvisibleCount() const;
 
-	// All columns in their "natural" order
-	typedef struct ColumnInfo_s
-	{
-		int index;     // Is a user prop when < GitSLC_USERPROPCOLOFFSET
-		int width;
-		bool visible;
-		bool relevant; // Set to @a visible, if no *shown* item has that property
-	} ColumnInfo;
+		bool IsRelevant(int column) const;
 
-	std::vector<ColumnInfo> m_columns;
+		// Tracking column modifications
+		void ColumnMoved(int column, int position);
+		void ColumnResized(int column);
 
-	// User-defined properties
-	std::set<CString> itemProps;
+		// Don't clutter the context menu with irrelevant prop info
+		void RemoveUnusedProps();
 
-	// Global column ordering including unused user props
-	std::vector<int> columnOrder;
+		// Bring everything back to its "natural" order
+		void ResetColumns(DWORD defaultColumns);
 
-	std::vector<int> itemName;
+		void OnColumnResized(NMHDR *pNMHDR, LRESULT *pResult);
+		void OnColumnMoved(NMHDR *pNMHDR, LRESULT *pResult);
+		void OnHdnBegintrack(NMHDR *pNMHDR, LRESULT *pResult);
+		int OnHdnItemchanging(NMHDR *pNMHDR, LRESULT *pResult);
+		void OnContextMenuHeader(CWnd * pWnd, CPoint point, bool isGroundEnable = false);
+		void AddMenuItem(CMenu *pop);
 
-	DWORD m_dwDefaultColumns;
+    protected:
+
+		// Initialization utilities
+		void ParseWidths(const CString& widths);
+		void SetStandardColumnVisibility(DWORD visibility);
+		void ParseColumnOrder(const CString& widths);
+
+		// Map internal column order onto visible column order
+		// (all invisibles in front)
+		std::vector<int> GetGridColumnOrder() const;
+		void ApplyColumnOrder();
+
+		// Utilities used when writing data to the registry
+		DWORD GetSelectedStandardColumns() const;
+		CString GetWidthString() const;
+		CString GetColumnOrderString() const;
 };
 
 /**
@@ -279,59 +264,8 @@ class CWorkingChangesFileListCtrl :	public CListCtrl
 public:
 	enum
 	{
-		IDGITLC_REVERT = 1,
-		/** Compare with base version. when current version is zero (i.e. working tree changes), compare working tree and HEAD */
-		IDGITLC_COMPARE,
-		IDGITLC_OPEN,
-		IDGITLC_DELETE,
-		IDGITLC_IGNORE,
-		/** Compare with base version and generate unified diff. when current version is zero (i.e. working tree changes), compare working tree and HEAD  */
-		IDGITLC_GNUDIFF1		 ,
-		IDGITLC_LOG              ,
-		IDGITLC_LOGOLDNAME,
-		IDGITLC_LOGSUBMODULE,
-		IDGITLC_EDITCONFLICT     ,
-		IDGITLC_IGNOREMASK	    ,
-		IDGITLC_IGNOREFOLDER    ,
-		IDGITLC_ADD			    ,
-		IDGITLC_RESOLVECONFLICT ,
-		IDGITLC_OPENWITH		,
-		IDGITLC_EXPLORE			,
-		IDGITLC_RESOLVETHEIRS	,
-		IDGITLC_RESOLVEMINE		,
-		IDGITLC_REMOVE			,
-		IDGITLC_COMMIT			,
-		IDGITLC_COPY			,
-		IDGITLC_COPYEXT			,
-		IDGITLC_REMOVEFROMCS	,
-		IDGITLC_CREATECS		,
-		IDGITLC_CREATEIGNORECS	,
-		IDGITLC_CHECKGROUP		,
-		IDGITLC_UNCHECKGROUP	,
-		/** Compare current version and working tree */
-		IDGITLC_COMPAREWC		,
-		IDGITLC_BLAME			,
-		IDGITLC_SAVEAS			,
-		IDGITLC_REVERTTOREV		,
-		IDGITLC_REVERTTOPARENT	,
-		IDGITLC_VIEWREV			,
-		IDGITLC_FINDENTRY       ,
-		/** used in sync dlg, compare in/out file changes; in combination with m_Rev1 and m_Rev2 */
-		IDGITLC_COMPARETWOREVISIONS,
-		/** used in sync dlg, compare in/out file changes; in combination with m_Rev1 and m_Rev2 */
-		IDGITLC_GNUDIFF2REVISIONS,
-		/** Compare two selected files */
-		IDGITLC_COMPARETWOFILES	,
-		IDGITLC_POPRESTORE		,
-		IDGITLC_CREATERESTORE	,
-		IDGITLC_RESTOREPATH		,
-		IDGITLC_ASSUMEVALID		,
-		IDGITLC_SKIPWORKTREE	,
-		IDGITLC_EXPORT			,
-		IDGITLC_UNSETIGNORELOCALCHANGES,
-        /** the IDSVNLC_MOVETOCS *must* be the last index, because it contains a dynamic submenu where */
-        /** the submenu items get command ID's sequent to this number */
-		IDGITLC_MOVETOCS		,
+        SIWC_CONTEXTMENU_1_ID = 1,
+        SIWC_CONTEXTMENU_2_ID
 	};
 
 	int GetColumnIndex(int colmask);
@@ -384,7 +318,12 @@ public:
 	 *                       Use the GitSLC_POPxxx defines.
 	 * \param bHasCheckboxes TRUE if the control should show check boxes on the left of each file entry.
 	 */
-	void Init(DWORD dwColumns, const CString& sColumnInfoContainer, unsigned __int64 dwContextMenus = ((GITSLC_POPALL ^ GITSLC_POPCOMMIT) ^ GITSLC_POPRESTORE), bool bHasCheckboxes = true, DWORD allowedColumns = 0xffffffff);
+	void Init(
+      DWORD dwColumns = SIWC_Columns::SIWC_COLUMN_FULLPATH | SIWC_Columns::SIWC_COLUMN_FILENAME | SIWC_Columns::SIWC_COLUMN_EXTENSION | SIWC_Columns::SIWC_COLUMN_STATUS,
+      DWORD dwAllowedColumns = SIWC_Columns::SIWC_COLUMN_FULLPATH | SIWC_Columns::SIWC_COLUMN_FILENAME | SIWC_Columns::SIWC_COLUMN_EXTENSION | SIWC_Columns::SIWC_COLUMN_STATUS,
+      const CString& sRegistryPrefix = _T("SIWorkingChangesFileListCtrlSettings"),
+      unsigned __int64 dwContextMenus = ((SIWC_CONTEXTMENU_ALL ^ SIWC_CONTEXTMENU_1) ^ SIWC_CONTEXTMENU_2), 
+      bool bHasCheckboxes = true );
 
 	/**
 	 * Sets a background image for the list control.
