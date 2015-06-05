@@ -85,13 +85,8 @@ BOOL CSICommitDlg::OnInitDialog()
 	// Initialize control data in dialog box
 	UpdateData(FALSE);
 
-	m_WorkingChangesFileListCtrl.Init(
-		SIWC_FULLPATH | SIWC_FILENAME | SIWC_EXTENSION | SIWC_STATUS, // Columns to show
-		_T("SIWorkingChangesFileListCtrlSettings"),                   // Registry key to store and read settings for control
-		(GITSLC_POPALL ^ (GITSLC_POPCOMMIT | GITSLC_POPSAVEAS)),      // Context menus
-		true, 
-		true);
-	m_WorkingChangesFileListCtrl.SetCancelBool( /* needs arg */ );
+	m_WorkingChangesFileListCtrl.Init();
+	m_WorkingChangesFileListCtrl.SetCancelBool( &m_bCancelled );
 	m_WorkingChangesFileListCtrl.EnableFileDrop();
 	m_WorkingChangesFileListCtrl.SetBackgroundImage(IDI_SICOMMIT_BKG);
 
